@@ -1,4 +1,4 @@
-module github.com/happycrud/xsql
+module github.com/goflower-io/xsql
 
 go 1.18
 

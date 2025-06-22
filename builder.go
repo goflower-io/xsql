@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/happycrud/xsql/dialect"
+	"github.com/goflower-io/xsql/dialect"
 )
 
 // Querier wraps the basic Query method that is implemented

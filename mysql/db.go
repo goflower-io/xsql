@@ -2,7 +2,8 @@ package mysql
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/happycrud/xsql"
+
+	"github.com/goflower-io/xsql"
 )
 
 func NewDB(c *xsql.Config) (*xsql.DB, error) {

@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
 	"time"
 
-	"github.com/happycrud/xsql/dialect"
+	"github.com/goflower-io/xsql/dialect"
 )
 
 type Entity interface {
@@ -37,7 +36,10 @@ func NewInsertExecutor[T Entity](eq ExecQuerier) *InsertExecutor[T] {
 	builder := &InsertExecutor[T]{
 		eq: eq,
 	}
-	builder.builder = Dialect(builder.a.Dialect()).Insert(builder.a.Table()).Schema(builder.a.Schema())
+	builder.builder = Dialect(
+		builder.a.Dialect(),
+	).Insert(builder.a.Table()).
+		Schema(builder.a.Schema())
 	return builder
 }
 
@@ -195,7 +197,10 @@ func NewDeleteExecutor[T Entity](eq ExecQuerier) *DeleteExecutor[T] {
 	builder := &DeleteExecutor[T]{
 		eq: eq,
 	}
-	builder.builder = Dialect(builder.a.Dialect()).Delete(builder.a.Table()).Schema(builder.a.Schema())
+	builder.builder = Dialect(
+		builder.a.Dialect(),
+	).Delete(builder.a.Table()).
+		Schema(builder.a.Schema())
 	return builder
 }
 
@@ -235,7 +240,10 @@ func NewSelectExecutor[T Entity](eq ExecQuerier) *SelectExecutor[T] {
 	sel := &SelectExecutor[T]{
 		eq: eq,
 	}
-	sel.builder = Dialect(sel.a.Dialect()).Select().From(Table(sel.a.Table()).Schema(sel.a.Schema()))
+	sel.builder = Dialect(
+		sel.a.Dialect(),
+	).Select().
+		From(Table(sel.a.Table()).Schema(sel.a.Schema()))
 	return sel
 }
 
@@ -410,7 +418,10 @@ func NewUpdateExecutor[T Entity](eq ExecQuerier) *UpdateExecutor[T] {
 	builder := &UpdateExecutor[T]{
 		eq: eq,
 	}
-	builder.builder = Dialect(builder.a.Dialect()).Update(builder.a.Table()).Schema(builder.a.Schema())
+	builder.builder = Dialect(
+		builder.a.Dialect(),
+	).Update(builder.a.Table()).
+		Schema(builder.a.Schema())
 	return builder
 }
 
