@@ -94,7 +94,7 @@ func (in *InsertExecutor[T]) Save(ctx context.Context) (int64, error) {
 		}
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
-			return rowsAffected, err
+			return 0, err
 		}
 		if lastInsertId > 0 && rowsAffected > 0 {
 			for _, v := range in.items {
@@ -106,7 +106,7 @@ func (in *InsertExecutor[T]) Save(ctx context.Context) (int64, error) {
 			}
 		}
 
-		return result.RowsAffected()
+		return rowsAffected, nil
 	case dialect.Postgres, dialect.SQLite:
 		_, autoIncrPkName := in.a.GetAutoIncrPk()
 		if in.upsert {
@@ -126,60 +126,55 @@ func (in *InsertExecutor[T]) Save(ctx context.Context) (int64, error) {
 				return 0, err
 			}
 			return result.RowsAffected()
-
-		} else {
-			insertColumnName := in.a.Columns()
-
-			pkIndex := -1
-			if autoIncrPkName != "" {
-				in.builder.Returning(autoIncrPkName)
-				// 移除自增自增主键名称
-				for k, v := range insertColumnName {
-					if v == autoIncrPkName {
-						insertColumnName = append(insertColumnName[:k], insertColumnName[k+1:]...)
-						pkIndex = k
-						break
-					}
-				}
-			}
-			in.builder.Columns(insertColumnName...)
-			for _, a := range in.items {
-				if a.IsNil() {
-					return 0, errors.New("can not insert a nil item")
-				}
-				insertValues := a.Values()
-				if autoIncrPkName != "" {
-					// 移除自增 ==0 的自增主键名称
-					if pkIndex >= 0 {
-						insertValues = append(insertValues[:pkIndex], insertValues[pkIndex+1:]...)
-					}
-				}
-				in.builder.Values(insertValues...)
-			}
-			ins, args := in.builder.Query()
-			q, err := in.eq.QueryContext(ctx, ins, args...)
-			if err != nil {
-				return 0, err
-			}
-			defer q.Close()
-
-			index := 0
-			for q.Next() {
-				var tempid int64
-				if e := q.Scan(&tempid); e != nil {
-					return 0, e
-				}
-				if id, autoPkName := in.items[index].GetAutoIncrPk(); id == 0 && autoPkName != "" {
-					in.items[index].SetAutoIncrPk(tempid)
-				}
-				index++
-			}
-
-			if q.Err() != nil {
-				return 0, q.Err()
-			}
-			return int64(len(in.items)), nil
 		}
+
+		insertColumnName := in.a.Columns()
+		pkIndex := -1
+		if autoIncrPkName != "" {
+			in.builder.Returning(autoIncrPkName)
+			// 移除自增主键列名
+			for k, v := range insertColumnName {
+				if v == autoIncrPkName {
+					insertColumnName = append(insertColumnName[:k], insertColumnName[k+1:]...)
+					pkIndex = k
+					break
+				}
+			}
+		}
+		in.builder.Columns(insertColumnName...)
+		for _, a := range in.items {
+			if a.IsNil() {
+				return 0, errors.New("can not insert a nil item")
+			}
+			insertValues := a.Values()
+			if pkIndex >= 0 {
+				insertValues = append(insertValues[:pkIndex], insertValues[pkIndex+1:]...)
+			}
+			in.builder.Values(insertValues...)
+		}
+		ins, args := in.builder.Query()
+		q, err := in.eq.QueryContext(ctx, ins, args...)
+		if err != nil {
+			return 0, err
+		}
+		defer q.Close()
+
+		index := 0
+		for q.Next() {
+			var tempid int64
+			if e := q.Scan(&tempid); e != nil {
+				return 0, e
+			}
+			if id, autoPkName := in.items[index].GetAutoIncrPk(); id == 0 && autoPkName != "" {
+				in.items[index].SetAutoIncrPk(tempid)
+			}
+			index++
+		}
+
+		if q.Err() != nil {
+			return 0, q.Err()
+		}
+		return int64(len(in.items)), nil
 
 	default:
 		return 0, errors.New("not support dialect")
@@ -299,12 +294,6 @@ func (s *SelectExecutor[T]) OrderAsc(field string) *SelectExecutor[T] {
 	return s
 }
 
-// ForceIndex ForceIndex  FORCE INDEX (`index_name`)
-func (s *SelectExecutor[T]) ForceIndex(indexName ...string) *SelectExecutor[T] {
-	s.builder.For(LockUpdate)
-	return s
-}
-
 func (s *SelectExecutor[T]) GroupBy(fields ...string) *SelectExecutor[T] {
 	s.builder.GroupBy(fields...)
 	return s
@@ -315,7 +304,7 @@ func (s *SelectExecutor[T]) Having(p *Predicate) *SelectExecutor[T] {
 	return s
 }
 
-func (s *SelectExecutor[T]) Slice(ctx context.Context, dstSlice interface{}) error {
+func (s *SelectExecutor[T]) Slice(ctx context.Context, dstSlice any) error {
 	_, ctx, cancel := Shrink(ctx, s.timeout)
 	defer cancel()
 	sqlstr, args := s.builder.Query()

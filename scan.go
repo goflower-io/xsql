@@ -16,11 +16,11 @@ type ColumnScanner interface {
 	Err() error
 	Next() bool
 	NextResultSet() bool
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // ScanOne scans one row to the given value. It fails if the rows holds more than 1 row.
-func ScanOne(rows ColumnScanner, v interface{}) error {
+func ScanOne(rows ColumnScanner, v any) error {
 	columns, err := rows.Columns()
 	if err != nil {
 		return fmt.Errorf("sql/scan: failed getting column names: %w", err)
@@ -142,20 +142,20 @@ func Strings(ctx context.Context, query Querier, eq ExecQuerier) ([]string, erro
 func ScanValue(rows ColumnScanner) (driver.Value, error) {
 	var v driver.Value
 	if err := ScanOne(rows, &v); err != nil {
-		return "", err
+		return nil, err
 	}
 	return v, nil
 }
 
 // ScanSlice scans the given ColumnScanner (basically, sql.Row or sql.Rows) into the given slice.
-func ScanSlice(rows ColumnScanner, v interface{}) error {
+func ScanSlice(rows ColumnScanner, v any) error {
 	columns, err := rows.Columns()
 	if err != nil {
 		return fmt.Errorf("sql/scan: failed getting column names: %w", err)
 	}
 	rv := reflect.ValueOf(v)
 	switch {
-	case rv.Kind() != reflect.Ptr:
+	case rv.Kind() != reflect.Pointer:
 		if t := reflect.TypeOf(v); t != nil {
 			return fmt.Errorf("sql/scan: ScanSlice(non-pointer %s)", t)
 		}
@@ -190,12 +190,12 @@ type rowScan struct {
 	// column types of a row.
 	columns []reflect.Type
 	// value functions that converts the row columns (result) to a reflect.Value.
-	value func(v ...interface{}) reflect.Value
+	value func(v ...any) reflect.Value
 }
 
 // values returns a []interface{} from the configured column types.
-func (r *rowScan) values() []interface{} {
-	values := make([]interface{}, len(r.columns))
+func (r *rowScan) values() []any {
+	values := make([]any, len(r.columns))
 	for i := range r.columns {
 		values[i] = reflect.New(r.columns[i]).Interface()
 	}
@@ -208,11 +208,11 @@ func scanType(typ reflect.Type, columns []string) (*rowScan, error) {
 	case assignable(typ):
 		return &rowScan{
 			columns: []reflect.Type{typ},
-			value: func(v ...interface{}) reflect.Value {
+			value: func(v ...any) reflect.Value {
 				return reflect.Indirect(reflect.ValueOf(v[0]))
 			},
 		}, nil
-	case k == reflect.Ptr:
+	case k == reflect.Pointer:
 		return scanPtr(typ, columns)
 	case k == reflect.Struct:
 		return scanStruct(typ, columns)
@@ -277,7 +277,7 @@ func scanStruct(typ reflect.Type, columns []string) (*rowScan, error) {
 		}
 		scan.columns = append(scan.columns, rtype)
 	}
-	scan.value = func(vs ...interface{}) reflect.Value {
+	scan.value = func(vs ...any) reflect.Value {
 		st := reflect.New(typ).Elem()
 		for i, v := range vs {
 			rv := reflect.Indirect(reflect.ValueOf(v))
@@ -313,7 +313,7 @@ func columnName(f reflect.StructField) string {
 // nillable reports if the reflect-type can have nil value.
 func nillable(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Interface, reflect.Slice, reflect.Map, reflect.Ptr, reflect.UnsafePointer:
+	case reflect.Interface, reflect.Slice, reflect.Map, reflect.Pointer, reflect.UnsafePointer:
 		return true
 	}
 	return false
@@ -327,7 +327,7 @@ func scanPtr(typ reflect.Type, columns []string) (*rowScan, error) {
 		return nil, err
 	}
 	wrap := scan.value
-	scan.value = func(vs ...interface{}) reflect.Value {
+	scan.value = func(vs ...any) reflect.Value {
 		v := wrap(vs...)
 		pt := reflect.PtrTo(v.Type())
 		pv := reflect.New(pt.Elem())

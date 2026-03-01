@@ -24,7 +24,7 @@ var opMap = map[string]Op{
 	"%":           OpMod,
 }
 
-func VailedOp(op string) (vailed bool, t Op) {
+func ValidOp(op string) (valid bool, t Op) {
 	o := strings.ToUpper(strings.TrimSpace(op))
 	if p, ok := opMap[o]; ok {
 		return true, p
@@ -33,7 +33,7 @@ func VailedOp(op string) (vailed bool, t Op) {
 }
 
 func GenP(field, op, value string) (*Predicate, error) {
-	v, o := VailedOp(op)
+	v, o := ValidOp(op)
 	if !v {
 		return nil, fmt.Errorf("op:%s is not support", op)
 	}
@@ -52,14 +52,14 @@ func GenP(field, op, value string) (*Predicate, error) {
 		return LTE(field, value), nil
 	case OpIn:
 		vs := strings.Split(value, ",")
-		is := make([]interface{}, 0, len(vs))
+		is := make([]any, 0, len(vs))
 		for _, i := range vs {
 			is = append(is, i)
 		}
 		return In(field, is...), nil
 	case OpNotIn:
 		vs := strings.Split(value, ",")
-		is := make([]interface{}, 0, len(vs))
+		is := make([]any, 0, len(vs))
 		for _, i := range vs {
 			is = append(is, i)
 		}

@@ -45,7 +45,7 @@ func (f FieldOp[T]) In(args ...T) WhereFunc {
 			s.Where(False())
 			return
 		}
-		v := make([]interface{}, len(args))
+		v := make([]any, len(args))
 		for i := range v {
 			v[i] = args[i]
 		}
@@ -58,7 +58,7 @@ func (f FieldOp[T]) NotIn(args ...T) WhereFunc {
 			s.Where(Not(False()))
 			return
 		}
-		v := make([]interface{}, len(args))
+		v := make([]any, len(args))
 		for i := range v {
 			v[i] = args[i]
 		}
@@ -68,62 +68,14 @@ func (f FieldOp[T]) NotIn(args ...T) WhereFunc {
 
 type StrFieldOp string
 
-func (f StrFieldOp) EQ(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(EQ(string(f), arg))
-	}
-}
-func (f StrFieldOp) NEQ(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(NEQ(string(f), arg))
-	}
-}
-func (f StrFieldOp) LT(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(LT(string(f), arg))
-	}
-}
-func (f StrFieldOp) LTE(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(LTE(string(f), arg))
-	}
-}
-func (f StrFieldOp) GT(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(GT(string(f), arg))
-	}
-}
-func (f StrFieldOp) GTE(arg string) WhereFunc {
-	return func(s *Selector) {
-		s.Where(GTE(string(f), arg))
-	}
-}
-func (f StrFieldOp) In(args ...string) WhereFunc {
-	return func(s *Selector) {
-		if len(args) == 0 {
-			s.Where(False())
-			return
-		}
-		v := make([]interface{}, len(args))
-		for i := range v {
-			v[i] = args[i]
-		}
-		s.Where(In(string(f), v...))
-	}
-}
-func (f StrFieldOp) NotIn(args ...string) WhereFunc {
-	return func(s *Selector) {
-		if len(args) == 0 {
-			s.Where(Not(False()))
-			return
-		}
-		v := make([]interface{}, len(args))
-		for i := range v {
-			v[i] = args[i]
-		}
-		s.Where(NotIn(string(f), v...))
-	}
-}
+func (f StrFieldOp) EQ(arg string) WhereFunc        { return FieldOp[string](f).EQ(arg) }
+func (f StrFieldOp) NEQ(arg string) WhereFunc       { return FieldOp[string](f).NEQ(arg) }
+func (f StrFieldOp) LT(arg string) WhereFunc        { return FieldOp[string](f).LT(arg) }
+func (f StrFieldOp) LTE(arg string) WhereFunc       { return FieldOp[string](f).LTE(arg) }
+func (f StrFieldOp) GT(arg string) WhereFunc        { return FieldOp[string](f).GT(arg) }
+func (f StrFieldOp) GTE(arg string) WhereFunc       { return FieldOp[string](f).GTE(arg) }
+func (f StrFieldOp) In(args ...string) WhereFunc    { return FieldOp[string](f).In(args...) }
+func (f StrFieldOp) NotIn(args ...string) WhereFunc { return FieldOp[string](f).NotIn(args...) }
 
 func (f StrFieldOp) IsNull() WhereFunc {
 	return func(s *Selector) {

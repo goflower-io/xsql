@@ -8,8 +8,8 @@ import (
 )
 
 type ExecQuerier interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 type DBI interface {
 	ExecQuerier
@@ -22,7 +22,7 @@ type Config struct {
 	ReadDSN      []string      // read data source name.
 	Active       int           // pool
 	Idle         int           // pool
-	IdleTimeout  time.Duration // connect max life time.
+	IdleTimeout  time.Duration // connect max idle time.
 	QueryTimeout time.Duration // query sql timeout
 	ExecTimeout  time.Duration // execute sql timeout
 }
@@ -95,11 +95,11 @@ func (db *DB) PingContext(ctx context.Context) error {
 	return nil
 }
 
-func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	return db.master.ExecContext(ctx, query, args...)
 }
 
-func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
 	return db.slave().QueryContext(ctx, query, args...)
 }
 
