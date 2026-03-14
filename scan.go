@@ -336,3 +336,45 @@ func scanPtr(typ reflect.Type, columns []string) (*rowScan, error) {
 	}
 	return scan, nil
 }
+
+
+func GetFieldByJSONTag(obj any, tag string) (any, bool) {
+	v := reflect.ValueOf(obj)
+	t := reflect.TypeOf(obj)
+
+	// 如果是指针
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+		t = t.Elem()
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" {
+			continue
+		}
+
+		// json:"name,omitempty"
+		name := jsonTag
+		if idx := indexComma(jsonTag); idx != -1 {
+			name = jsonTag[:idx]
+		}
+
+		if name == tag {
+			return v.Field(i).Interface(), true
+		}
+	}
+
+	return nil, false
+}
+
+func indexComma(tag string) int {
+	for i, c := range tag {
+		if c == ',' {
+			return i
+		}
+	}
+	return -1
+}
