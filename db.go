@@ -90,9 +90,9 @@ func (db *DB) Logger() Logger {
 	return nil
 }
 
-func (db *DB) logf(format string, v ...any) {
+func (db *DB) logf(ctx context.Context, format string, v ...any) {
 	if l := db.Logger(); l != nil {
-		l.Printf(format, v...)
+		l.Printf(ctx, format, v...)
 	}
 }
 
@@ -124,19 +124,25 @@ func (db *DB) PingContext(ctx context.Context) error {
 }
 
 func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	db.logf("Exec ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := db.master.ExecContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		db.logf("Exec error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		db.logf(ctx, "Exec error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		db.logf(ctx, "Exec info  query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }
 
 func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	db.logf("Query ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := db.slave().QueryContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		db.logf("Query error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		db.logf(ctx, "Query error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		db.logf(ctx, "Query info  query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }

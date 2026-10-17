@@ -6,11 +6,28 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"time"
 )
 
-// Logger records executed SQL. It is satisfied by *log.Logger and most loggers.
+// Logger records executed SQL statements and errors. The ctx argument carries
+// the caller's context so logger implementations can propagate it (e.g. to
+// slog.DebugContext). Use stdLogger / SlogLogger to adapt common loggers.
 type Logger interface {
-	Printf(format string, v ...any)
+	Printf(ctx context.Context, format string, v ...any)
+}
+
+// StdLogger adapts a *log.Logger (e.g. log.Default()) to Logger, dropping ctx.
+func StdLogger(l *log.Logger) Logger {
+	if l == nil {
+		l = log.Default()
+	}
+	return stdLogger{l}
+}
+
+type stdLogger struct{ l *log.Logger }
+
+func (s stdLogger) Printf(ctx context.Context, format string, v ...any) {
+	s.l.Printf(format, v...)
 }
 
 // DebugOption configures the DebugDB returned by Debug.
@@ -28,7 +45,7 @@ func WithLogger(l Logger) DebugOption {
 // Debug wraps db and logs every executed SQL statement and error. It defaults
 // to log.Default(); use WithLogger to route output elsewhere.
 func Debug(db DBI, opts ...DebugOption) *DebugDB {
-	d := &DebugDB{dbt: db, log: log.Default()}
+	d := &DebugDB{dbt: db, log: StdLogger(log.Default())}
 	for _, opt := range opts {
 		opt(d)
 	}
@@ -45,8 +62,8 @@ func SlogLogger(l *slog.Logger) Logger {
 
 type slogLogger struct{ l *slog.Logger }
 
-func (s slogLogger) Printf(format string, v ...any) {
-	s.l.Debug(fmt.Sprintf(format, v...))
+func (s slogLogger) Printf(ctx context.Context, format string, v ...any) {
+	s.l.DebugContext(ctx, fmt.Sprintf(format, v...))
 }
 
 type DebugDB struct {
@@ -60,19 +77,25 @@ type DebugTx struct {
 }
 
 func (d *DebugDB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	d.log.Printf("Debug Exec ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := d.dbt.ExecContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		d.log.Printf("Debug Exec error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		d.log.Printf(ctx, "Debug Exec error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		d.log.Printf(ctx, "Debug Exec query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }
 
 func (d *DebugDB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	d.log.Printf("Debug Query ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := d.dbt.QueryContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		d.log.Printf("Debug Query error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		d.log.Printf(ctx, "Debug Query error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		d.log.Printf(ctx, "Debug Query query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }
@@ -94,19 +117,25 @@ func (d *DebugDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*DebugTx, e
 }
 
 func (d *DebugTx) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	d.log.Printf("Debug Tx Exec ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := d.eq.ExecContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		d.log.Printf("Debug Tx Exec error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		d.log.Printf(ctx, "Debug Tx Exec error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		d.log.Printf(ctx, "Debug Tx Exec query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }
 
 func (d *DebugTx) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	d.log.Printf("Debug TX Query ctx:%v query:%s args:%+v", ctx, query, args)
+	start := time.Now()
 	r, err := d.eq.QueryContext(ctx, query, args...)
+	cost := time.Since(start)
 	if err != nil {
-		d.log.Printf("Debug TX Query error ctx:%v query:%s args:%+v err:%v", ctx, query, args, err)
+		d.log.Printf(ctx, "Debug TX Query error query:%s args:%+v cost:%s err:%v", query, args, cost, err)
+	} else {
+		d.log.Printf(ctx, "Debug TX Query query:%s args:%+v cost:%s", query, args, cost)
 	}
 	return r, err
 }
