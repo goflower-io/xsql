@@ -18,7 +18,7 @@ type bufLogger struct {
 	buf bytes.Buffer
 }
 
-func (l *bufLogger) Printf(format string, v ...any) {
+func (l *bufLogger) Printf(ctx context.Context, format string, v ...any) {
 	l.buf.WriteString(strings.TrimSpace(fmt.Sprintf(format, v...)))
 	l.buf.WriteString("\n")
 }
@@ -82,7 +82,7 @@ func TestDebugLogsError(t *testing.T) {
 func TestSlogLogger(t *testing.T) {
 	var buf bytes.Buffer
 	l := SlogLogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	l.Printf("hello %s", "world")
+	l.Printf(context.Background(), "hello %s", "world")
 	if got := buf.String(); !strings.Contains(got, "hello world") {
 		t.Errorf("slog adapter did not log expected output: %q", got)
 	}
